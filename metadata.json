@@ -1,0 +1,11 @@
+{
+  "name": "Remix: ReimagineRoom AI",
+  "description": "An expert interior design assistant that helps you redesign your rooms within a budget using AI-powered suggestions and visualizations.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "image_generation",
+    "ai_assistant"
+  ]
+}

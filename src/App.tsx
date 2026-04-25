@@ -59,16 +59,16 @@ const STYLE_THUMBNAILS: Record<string, string> = {
   'Bohemian': 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&q=80&w=400',
   'Luxury': 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=400',
   // Garden Styles
-  'English': 'https://images.unsplash.com/photo-1598902108854-10e335adac99?auto=format&fit=crop&q=80&w=400',
-  'Elegant': 'https://images.unsplash.com/photo-1588880331179-bc9b93a8ec5e?auto=format&fit=crop&q=80&w=400',
-  'Japanese': 'https://images.unsplash.com/photo-1583064313642-a7c149480c7e?auto=format&fit=crop&q=80&w=400',
-  'Mediterranean': 'https://images.unsplash.com/photo-1516108317508-6788f6a160e6?auto=format&fit=crop&q=80&w=400',
+  'English': 'https://images.unsplash.com/photo-1606477901208-b49dde6b3ad8?q=80&w=1167&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+  'Elegant': 'https://images.unsplash.com/photo-1755121855969-55e405c0deb5?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8ZWxlZ2FudCUyMGdhcmRlbiUyMGRlc2lnbnxlbnwwfHwwfHx8MA%3D%3D',
+  'Japanese': 'https://images.unsplash.com/photo-1693279568224-0cdfcbe3d56d?q=80&w=1171&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+  'Mediterranean': 'https://images.unsplash.com/photo-1539466704352-904b0f486975?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
 };
 
 const FLOOR_PLAN_SAMPLES = {
-  'Technical': 'https://images.unsplash.com/photo-1749041688079-e0eff754ae13?auto=format&fit=crop&q=80&w=600',
-  '2.5D': 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&q=80&w=600',
-  '3D Isometric': 'https://images.unsplash.com/photo-1600585154526-990dcea4db0d?auto=format&fit=crop&q=80&w=600'
+  'Technical': 'https://images.unsplash.com/photo-1749041688079-e0eff754ae13',
+  '2.5D': 'https://images.unsplash.com/photo-1524758631624-e2822e304c36',
+  '3D Isometric': 'https://images.unsplash.com/photo-1600585154526-990dcea4db0d'
 };
 
 const BUDGET_TIERS = [
@@ -179,7 +179,9 @@ export default function App() {
       let sourceImage = (activeTool === 'Floor Plan Generator' && generatedImage) ? generatedImage : image;
       
       if (!sourceImage && activeTool === 'Floor Plan Generator') {
-        sourceImage = (FLOOR_PLAN_SAMPLES as any)[floorPlanConfig.style] + '?auto=format&fit=crop&q=80&w=1000';
+        const baseUrl = (FLOOR_PLAN_SAMPLES as any)[floorPlanConfig.style];
+        const separator = baseUrl.includes('?') ? '&' : '?';
+        sourceImage = baseUrl + separator + 'auto=format&fit=crop&q=80&w=1000';
       }
 
       switch(activeTool) {
@@ -829,9 +831,9 @@ export default function App() {
                     <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Style</label>
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { name: 'Technical', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=300' },
-                        { name: '2.5D', img: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&q=80&w=300' },
-                        { name: '3D Isometric', img: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=300' }
+                        { name: 'Technical', img: 'https://images.unsplash.com/photo-1721244653580-79577d2822a2?q=80&w=1196&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+                        { name: '2.5D', img: 'https://images.unsplash.com/photo-1771192442016-d4c78d5729eb?q=80&w=1333&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+                        { name: '3D Isometric', img: 'https://plus.unsplash.com/premium_photo-1747771129197-010a72fe735b?q=80&w=784&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' }
                       ].map((s) => (
                         <button
                           key={s.name}

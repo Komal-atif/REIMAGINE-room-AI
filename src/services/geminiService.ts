@@ -1,17 +1,32 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DesignSuggestion, DesignStyle, RoomType, ColorPalette } from "../types";
 
-// Support both AI Studio environment and standard Vite environment variables
-const apiKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || import.meta.env.VITE_GEMINI_API_KEY;
+// Use process.env.GEMINI_API_KEY as primary source (AI Studio) 
+// and a safer way to access import.meta.env for TypeScript
+const getApiKey = () => {
+  // Try platform shim first
+  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+  // Try Vite environment variable
+  // @ts-ignore - handled for local dev environment
+  const viteKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  if (viteKey) return viteKey;
 
-if (!apiKey) {
-  console.error("Gemini API Key is missing. Please set GEMINI_API_KEY or VITE_GEMINI_API_KEY in your .env file.");
+  return undefined;
+};
+
+const GEMINI_KEY = getApiKey();
+
+if (!GEMINI_KEY) {
+  console.warn("Gemini API Key is currently missing. AI features will not be functional. Please add VITE_GEMINI_API_KEY to your .env file or GEMINI_API_KEY to your environment.");
 }
 
-const ai = new GoogleGenAI(apiKey || "");
+// Initialize only if we have a key to avoid errors in models.generateContent if ai is null
+const ai = GEMINI_KEY ? new GoogleGenAI({ apiKey: GEMINI_KEY }) : null;
 
-// Helper to determine if we are in AI Studio environment
-const isAIStudio = typeof process !== 'undefined' && process.env?.GEMINI_API_KEY && !import.meta.env?.VITE_GEMINI_API_KEY;
+// Helper to determine if we should use public models or internal ones
+const isAIStudio = !!(typeof process !== 'undefined' && process.env?.GEMINI_API_KEY && !window.location.hostname.includes('localhost'));
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -107,16 +122,33 @@ export const generateDesignPlan = async (
     `;
 
   const runGeneration = async (modelName: string) => {
+    if (!ai) {
+      throw new Error("Gemini API is not initialized. Please ensure your API key is configured.");
+    }
+    
     // Map internal aliases to public models if running locally
     let actualModel = modelName;
     if (!isAIStudio) {
-      if (modelName === "gemini-3-flash-preview") actualModel = "gemini-1.5-flash";
-      if (modelName === "gemini-3.1-flash-lite-preview") actualModel = "gemini-1.5-flash";
+      if (modelName.includes("gemini-3")) actualModel = "gemini-1.5-flash";
+      console.log(`Local dev detected, mapping ${modelName} to ${actualModel}`);
     }
 
-    const model = ai.getGenerativeModel({
+    const parts: any[] = [];
+    if (processedImageData && processedImageData.includes(',')) {
+      parts.push({ 
+        inlineData: { 
+          data: processedImageData.split(',')[1], 
+          mimeType: "image/jpeg" 
+        } 
+      });
+    }
+    parts.push({ text: prompt });
+
+    console.log(`Calling Gemini (${actualModel})...`);
+    const response = await ai.models.generateContent({
       model: actualModel,
-      generationConfig: {
+      contents: { parts: parts },
+      config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -164,21 +196,7 @@ export const generateDesignPlan = async (
       }
     });
 
-    const parts: any[] = [];
-    if (processedImageData && processedImageData.includes(',')) {
-      parts.push({ 
-        inlineData: { 
-          data: processedImageData.split(',')[1], 
-          mimeType: "image/jpeg" 
-        } 
-      });
-    }
-    parts.push({ text: prompt });
-
-    const result = await model.generateContent({ contents: [{ role: "user", parts }] });
-    const response = await result.response;
-    const text = response.text();
-
+    const text = response.text || "";
     try {
       const parsed = JSON.parse(text);
       return {
@@ -221,14 +239,17 @@ export const generateTransformedImage = async (
   }
 
   const runImageGen = async (modelName: string) => {
+    if (!ai) {
+      throw new Error("Gemini API is not initialized. Please ensure your API key is configured.");
+    }
+    
+    // Map internal aliases to public models if running locally
     let actualModel = modelName;
     if (!isAIStudio) {
-      // Local execution uses 1.5-flash which can return text-based image descriptions or similar
-      // but if the user wants true image-to-image we need a model that supports it.
-      actualModel = "gemini-1.5-flash"; 
+      // Standard local keys might not support nano banana models like flash-image
+      actualModel = "gemini-1.5-flash";
+      console.log(`Local dev detected, mapping ${modelName} to ${actualModel}`);
     }
-
-    const model = ai.getGenerativeModel({ model: actualModel });
 
     const parts: any[] = [];
     if (processedImageData && processedImageData.includes(',')) {
@@ -241,13 +262,15 @@ export const generateTransformedImage = async (
     }
     parts.push({ text: redesignDescription });
 
-    const result = await model.generateContent({ contents: [{ role: "user", parts }] });
-    const response = await result.response;
+    console.log(`Calling Gemini Image Gen (${actualModel})...`);
+    const response = await ai.models.generateContent({
+      model: actualModel,
+      contents: { parts: parts },
+    });
     
-    // Check for inlineData in candidates manually if using flash-image
-    const candidate = response.candidates?.[0];
-    if (candidate?.content?.parts) {
-      for (const part of candidate.content.parts) {
+    // Check for inlineData in parts
+    if (response.candidates && response.candidates[0].content.parts) {
+      for (const part of response.candidates[0].content.parts) {
         if (part.inlineData) {
           return {
             url: `data:image/png;base64,${part.inlineData.data}`,

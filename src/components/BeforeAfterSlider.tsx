@@ -3,14 +3,29 @@ import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 
 interface BeforeAfterSliderProps {
-  before: string;
-  after: string;
+  before?: string | null;
+  after?: string | null;
   className?: string;
+  isDemo?: boolean;
 }
 
-export function BeforeAfterSlider({ before, after, className }: BeforeAfterSliderProps) {
+export function BeforeAfterSlider({ before, after, className, isDemo }: BeforeAfterSliderProps) {
   const [sliderPos, setSliderPos] = useState(50);
+  const [containerWidth, setContainerWidth] = useState(1000);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const handleMove = (clientX: number) => {
     if (!containerRef.current) return;
@@ -31,48 +46,46 @@ export function BeforeAfterSlider({ before, after, className }: BeforeAfterSlide
       onTouchMove={onTouchMove}
     >
       {/* After Image */}
-      <img src={after} className="absolute inset-0 w-full h-full object-cover" alt="After" />
+      {after && <img src={after} className="absolute inset-0 w-full h-full object-cover" alt="After" />}
       
-      {/* Before Image (Clipped) */}
       <div 
         className="absolute inset-0 w-full h-full overflow-hidden border-r-2 border-white/50"
         style={{ width: `${sliderPos}%` }}
       >
-        <img src={before} className="absolute inset-0 w-full h-full object-cover max-w-none" alt="Before" style={{ width: '100vw' }} />
-        <div className="absolute top-4 left-4 glass-morphism py-1 px-3 rounded-full text-[10px] font-bold text-slate-800 uppercase tracking-widest z-10">Before</div>
+        {before && (
+          <img 
+            src={before} 
+            className="absolute inset-0 h-full object-cover max-w-none" 
+            alt="Before" 
+            style={{ width: containerWidth }} 
+          />
+        )}
+        <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md py-1.5 px-4 rounded-full text-[10px] font-black text-white uppercase tracking-[0.2em] z-10 border border-white/10 shadow-xl">Before</div>
       </div>
 
       {/* After label */}
-      <div className="absolute top-4 right-4 glass-morphism py-1 px-3 rounded-full text-[10px] font-bold text-slate-800 uppercase tracking-widest z-10 text-right">After</div>
+      <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md py-1.5 px-4 rounded-full text-[10px] font-black text-white uppercase tracking-[0.2em] z-10 text-right border border-white/10 shadow-xl">After</div>
 
       {/* Slider Knob */}
       <div 
-        className="absolute top-0 bottom-0 w-1 bg-white flex items-center justify-center z-20 pointer-events-none group-hover:w-1.5 transition-all"
+        className="absolute top-0 bottom-0 w-[2px] bg-white flex items-center justify-center z-20 pointer-events-none transition-all shadow-[0_0_10px_rgba(0,0,0,0.1)]"
         style={{ left: `${sliderPos}%` }}
       >
-        <motion.div 
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="w-12 h-12 rounded-full bg-white shadow-[0_0_30px_rgba(255,255,255,0.5)] flex items-center justify-center -ml-6 border-4 border-slate-900/5 backdrop-blur-sm"
+        <div 
+          className="w-10 h-10 rounded-full bg-white shadow-2xl flex items-center justify-center -ml-5 border border-slate-200 pointer-events-auto"
         >
-          <div className="flex gap-1.5">
-            <motion.div 
-              animate={{ height: [12, 16, 12] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="w-1 bg-indigo-500 rounded-full" 
-            />
-            <motion.div 
-              animate={{ height: [16, 12, 16] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="w-1 bg-purple-500 rounded-full" 
-            />
+          <div className="flex items-center gap-1.5 text-slate-900">
+            <div className="w-1 h-1.5 border-l-2 border-t-2 border-slate-900 -rotate-45" />
+            <div className="w-1 h-1.5 border-r-2 border-t-2 border-slate-900 rotate-45" />
           </div>
-        </motion.div>
+        </div>
         
         {/* Animated Directional Arrows */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-full ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
-           <div className="text-[8px] font-black uppercase text-white bg-slate-950/40 px-2 py-1 rounded-full backdrop-blur-md">Slide to Reveal</div>
-        </div>
+        {isDemo && (
+          <div className="absolute top-1/2 -translate-y-1/2 left-full ml-4 whitespace-nowrap">
+            <div className="text-[9px] font-black uppercase text-white bg-indigo-600 px-3 py-1.5 rounded-full shadow-lg shadow-indigo-500/30 animate-bounce">Slide to Reveal</div>
+          </div>
+        )}
       </div>
     </div>
   );

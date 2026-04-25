@@ -1,6 +1,6 @@
 {
-  "name": "Remix: ReimagineRoom AI",
-  "description": "An expert interior design assistant that helps you redesign your rooms within a budget using AI-powered suggestions and visualizations.",
+  "name": "REIMAGINE Room AI",
+  "description": "INTERIOR INTELLIGENCE - Experience architectural preservation combined with artistic reimagining. Strictly layout-locked, budget-conscious, and beautiful.",
   "requestFramePermissions": [
     "camera"
   ],

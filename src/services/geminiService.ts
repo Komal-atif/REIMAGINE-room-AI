@@ -1,14 +1,34 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { DesignSuggestion, DesignStyle, RoomType, ColorPalette } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+async function imageUrlToBase64(url: string): Promise<string> {
+  try {
+    const response = await fetch(url, { 
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("FileReader failed"));
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error("Image processing error:", url, err);
+    return "";
+  }
+}
+
 const callWithRetry = async <T>(
   fn: () => Promise<T>,
-  maxRetries = 5, // Increased retries
-  initialDelay = 2000 // Increased initial delay
+  maxRetries = 5,
+  initialDelay = 2000
 ): Promise<T> => {
   let lastError: any;
   for (let i = 0; i < maxRetries; i++) {
@@ -16,12 +36,26 @@ const callWithRetry = async <T>(
       return await fn();
     } catch (err: any) {
       lastError = err;
-      const isQuotaError = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED');
+      
+      // Robust error detection for different formats
+      let errorStr = "";
+      try {
+        errorStr = JSON.stringify(err).toLowerCase();
+      } catch {
+        errorStr = String(err).toLowerCase();
+      }
+
+      const isQuotaError = 
+        errorStr.includes('429') || 
+        errorStr.includes('quota') || 
+        errorStr.includes('resource_exhausted') ||
+        errorStr.includes('rate limit') ||
+        (err && (err.code === 429 || err.status === 429)) ||
+        (err && (err.status === 'RESOURCE_EXHAUSTED' || (err.error && err.error.status === 'RESOURCE_EXHAUSTED')));
       
       if (isQuotaError && i < maxRetries - 1) {
-        // Exponential backoff with jitter
-        const delay = (initialDelay * Math.pow(2, i)) + (Math.random() * 1000);
-        console.warn(`AI Quota reached, retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries})`);
+        const delay = (initialDelay * Math.pow(1.5, i)) + (Math.random() * 2000);
+        console.warn(`Gemini Quota reached, retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries})`);
         await sleep(delay);
         continue;
       }
@@ -32,47 +66,52 @@ const callWithRetry = async <T>(
 };
 
 export const generateDesignPlan = async (
-  imageData: string,
+  imageData: string | null,
   roomType: RoomType,
   style: DesignStyle,
   budget: number,
-  colorPalette: ColorPalette
+  colorPalette: ColorPalette,
+  action: 'redesign' | 'clean' | 'paint' | 'generate' = 'redesign',
+  customContext?: string
 ): Promise<DesignSuggestion> => {
-  const prompt = `
-    I have a photo of a ${roomType} that I want to redesign in a ${style} style with a budget of RS ${budget} Pakistani Rupees.
-    The desired color palette theme is: ${colorPalette}.
-    
-    1. Analyze the original room photo (in base64 format).
-    2. Propose a complete redesign plan that stays within the budget of RS ${budget} PKR and strictly adheres to the ${colorPalette} color scheme.
+  let processedImageData = imageData;
+  if (imageData && imageData.startsWith('http')) {
+    processedImageData = await imageUrlToBase64(imageData);
+  }
+
+  const prompt = action === 'generate'
+    ? `
+    Provide a professional architectural design plan for a new floor plan layout.
+    Context: ${customContext || ''}
+    Style: ${style}.
+    Provide detailed descriptions for architectural elements, wall placements, and room flow.
+    Description for image gen: "A professional ${style} floor plan, CAD level detail."
+    `
+    : `
+    1. Analyze the original photo of this ${roomType}.
+    2. Task: ${action === 'clean' ? 'Provide a plan to empty the space.' : `Provide a redesign in ${style} style with a budget of PKR ${budget} and ${colorPalette} color palette.`}
     3. MANDATORY CRITERIA: 
-       - Architecture (walls, windows, doors, ceiling height) MUST be 100% identical to the source image.
-       - Focus strictly on FURNISHING and PAINTING/DECOR.
-    4. BUDGET ENFORCEMENT & PAKISTAN MARKET:
-       - The user has a budget of RS ${budget}. 
-       - For low budgets, prioritize "Budget" or "Affordable" products from Daraz.pk or local Pakistani vendors.
-       - For high budgets, choose specialized stores like Interwood, Zubaidas, or Habitt.
-       - Every item MUST be realistic and available in Pakistan.
-    5. REAL PRODUCTS & SEARCH:
-       - Every item must have a realistic market price in PKR.
-       - "purchaseLink" MUST be a functional URL to the real product (e.g. from Daraz.pk, Interwood.pk, or a Google Search for the specific item in Pakistan).
-       - Provide the dominant HEX color code for each item.
-    6. SPATIAL POSITIONING:
-       - In your redesign plan, mention where each item is placed relative to real-life room standards.
-    7. Describe the redesigned room for an image generator: "A high-quality photo of the SAME room from the source, exact layout, redesigned with ${style} furniture in ${colorPalette} tones, camera angle identical, professional architectural photography."
-  `;
+       - Architecture MUST be identical to the source image.
+    4. BUDGET ENFORCEMENT & PAKISTANI MARKET:
+       - User budget: PKR ${budget}. Use Daraz.pk, Habitt.com, Interwood.pk prices.
+    5. Describe the changed room for an image generator: "A high-quality photo of the SAME room, ${action === 'clean' ? 'completely empty' : `redesigned with ${style} furniture`}, camera angle identical."
+    `;
 
   const runGeneration = async (modelName: string) => {
-    const response = await ai.models.generateContent({
+    const parts: any[] = [];
+    if (processedImageData && processedImageData.includes(',')) {
+      parts.push({ 
+        inlineData: { 
+          data: processedImageData.split(',')[1], 
+          mimeType: "image/jpeg" 
+        } 
+      });
+    }
+    parts.push({ text: prompt });
+
+    const response: GenerateContentResponse = await ai.models.generateContent({
       model: modelName,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { data: imageData.split(',')[1], mimeType: "image/jpeg" } },
-            { text: prompt }
-          ]
-        }
-      ],
+      contents: { parts: parts },
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -80,23 +119,10 @@ export const generateDesignPlan = async (
           properties: {
             title: { type: Type.STRING },
             summary: { type: Type.STRING },
-            redesignDescription: { 
-              type: Type.STRING, 
-              description: "Detailed prompt for generating the 'after' image." 
-            },
+            redesignDescription: { type: Type.STRING },
             transformations: {
               type: Type.ARRAY,
               items: { type: Type.STRING }
-            },
-            transformedElements: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  element: { type: Type.STRING },
-                  change: { type: Type.STRING }
-                }
-              }
             },
             furniture: {
               type: Type.ARRAY,
@@ -105,66 +131,38 @@ export const generateDesignPlan = async (
                 properties: {
                   id: { type: Type.STRING },
                   name: { type: Type.STRING },
-                  category: { type: Type.STRING },
                   price: { type: Type.NUMBER },
-                  description: { type: Type.STRING },
                   purchaseLink: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  color: { type: Type.STRING },
                   availableAt: { 
-                    type: Type.ARRAY, 
-                    items: { type: Type.STRING },
-                    description: "List of marketplace names where this item can be purchased."
-                  },
-                  color: { 
-                    type: Type.STRING,
-                    description: "Hex color code of the item (e.g. #FFFFFF)."
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
                   }
-                },
-                required: ["name", "price", "purchaseLink", "availableAt", "color"]
+                }
+              }
+            },
+            roomCounts: {
+              type: Type.OBJECT,
+              properties: {
+                Bedroom: { type: Type.NUMBER },
+                Bathroom: { type: Type.NUMBER },
+                Kitchen: { type: Type.NUMBER },
+                LivingRoom: { type: Type.NUMBER },
+                DiningRoom: { type: Type.NUMBER }
               }
             },
             overallPrice: { type: Type.NUMBER }
           },
-          required: ["title", "summary", "furniture", "overallPrice", "redesignDescription", "transformations", "transformedElements"]
-        },
-        tools: [{ googleSearch: {} }],
+          required: ["title", "summary", "furniture", "overallPrice", "redesignDescription", "transformations"]
+        }
       }
     });
 
-    let text = "";
-    if (response.candidates && response.candidates[0].content.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.text) {
-          text += part.text;
-        }
-      }
-    }
-
-    if (!text) {
-      text = response.text || "";
-    }
-
-    // Handle markdown-wrapped JSON
-    const jsonMatch = text.match(/```json?\n?([\s\S]*?)\n?```/) || text.match(/{[\s\S]*}/);
-    const cleanText = jsonMatch ? jsonMatch[jsonMatch.length - 1] : text;
-
+    const text = response.text || "";
     try {
-      const parsed = JSON.parse(cleanText);
-      
-      // Ensure overallPrice is a number
-      if (typeof parsed.overallPrice === 'string') {
-        parsed.overallPrice = parseFloat(parsed.overallPrice.replace(/[^0-9.]/g, '')) || 0;
-      }
-
-      // Ensure item prices are numbers
-      if (Array.isArray(parsed.furniture)) {
-        parsed.furniture = parsed.furniture.map((item: any) => ({
-          ...item,
-          price: typeof item.price === 'string' 
-            ? (parseFloat(item.price.replace(/[^0-9.]/g, '')) || 0)
-            : (item.price || 0)
-        }));
-      }
-
+      const parsed = JSON.parse(text);
       return {
         ...parsed,
         totalBudget: budget,
@@ -172,7 +170,17 @@ export const generateDesignPlan = async (
       };
     } catch (parseErr) {
       console.error("Failed to parse AI response:", text);
-      throw new Error("The AI provided an invalid design plan format. Please try again.");
+      return {
+        title: "Design Plan",
+        summary: "We created a layout optimized for your space.",
+        furniture: [],
+        overallPrice: budget,
+        redesignDescription: text.substring(0, 500) || "Modern redesign",
+        transformations: ["Color update", "Furniture layout"],
+        transformedElements: [],
+        totalBudget: budget,
+        isFallback: true
+      } as any;
     }
   };
 
@@ -180,36 +188,35 @@ export const generateDesignPlan = async (
     try {
       return await runGeneration("gemini-3-flash-preview");
     } catch (err: any) {
-      // Fallback to Flash Lite if the main model is hitting quota
-      const isQuotaError = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED');
-      if (isQuotaError) {
-        console.warn("Main model quota reached, trying fallback model...");
-        return await runGeneration("gemini-3.1-flash-lite-preview");
-      }
-      throw err;
+      return await runGeneration("gemini-3.1-flash-lite-preview");
     }
-  }, 5, 2000).catch(err => {
-    if (err.message && (err.message.includes('quota') || err.message.includes('429'))) {
-      throw new Error('Our AI designer is currently over-booked (Quota Reached). Please wait a moment or try again later.');
-    }
-    throw err;
-  });
+  }, 3, 1000);
 };
 
 export const generateTransformedImage = async (
-  originalImageData: string,
+  originalImageData: string | null,
   redesignDescription: string
 ): Promise<{ url: string, isFallback: boolean }> => {
+  let processedImageData = originalImageData;
+  if (originalImageData && originalImageData.startsWith('http')) {
+    processedImageData = await imageUrlToBase64(originalImageData);
+  }
+
   const runImageGen = async (modelName: string) => {
-    const aiImage = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await aiImage.models.generateContent({
+    const parts: any[] = [];
+    if (processedImageData && processedImageData.includes(',')) {
+      parts.push({ 
+        inlineData: { 
+          data: processedImageData.split(',')[1], 
+          mimeType: "image/jpeg" 
+        } 
+      });
+    }
+    parts.push({ text: redesignDescription });
+
+    const response: GenerateContentResponse = await ai.models.generateContent({
       model: modelName,
-      contents: {
-        parts: [
-          { inlineData: { data: originalImageData.split(',')[1], mimeType: "image/jpeg" } },
-          { text: `Transform this exact room according to these design instructions: ${redesignDescription}. REMEMBER: Keep the window, walls, and layout exactly the same. Only change the furniture and paint.` }
-        ],
-      },
+      contents: { parts: parts },
     });
 
     if (response.candidates && response.candidates[0].content.parts) {
@@ -217,27 +224,30 @@ export const generateTransformedImage = async (
         if (part.inlineData) {
           return {
             url: `data:image/png;base64,${part.inlineData.data}`,
-            isFallback: modelName !== "gemini-2.5-flash-image"
+            isFallback: false
           };
         }
       }
     }
-    throw new Error('No image generated');
+    
+    return { 
+      url: originalImageData || "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=1000", 
+      isFallback: true 
+    };
   };
 
   return callWithRetry(async () => {
     try {
       return await runImageGen("gemini-2.5-flash-image");
     } catch (err: any) {
-      const isQuotaError = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED');
-      if (isQuotaError) {
-        console.warn("Image generation quota reached, trying fallback model...");
-        return await runImageGen("gemini-3.1-flash-image-preview");
-      }
+      console.warn("Retrying image generation due to error:", err.message || err);
       throw err;
     }
-  }, 5, 2500).catch(error => {
-    console.warn("Visualizing with layout sync fallback due to resource limits.");
-    return { url: originalImageData, isFallback: true }; 
+  }, 10, 6000).catch(err => {
+    console.error("Image transformation failed after retries:", err);
+    return { 
+      url: originalImageData || "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=1000", 
+      isFallback: true 
+    };
   });
 };

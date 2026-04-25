@@ -1,7 +1,17 @@
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { DesignSuggestion, DesignStyle, RoomType, ColorPalette } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Support both AI Studio environment and standard Vite environment variables
+const apiKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || import.meta.env.VITE_GEMINI_API_KEY;
+
+if (!apiKey) {
+  console.error("Gemini API Key is missing. Please set GEMINI_API_KEY or VITE_GEMINI_API_KEY in your .env file.");
+}
+
+const ai = new GoogleGenAI(apiKey || "");
+
+// Helper to determine if we are in AI Studio environment
+const isAIStudio = typeof process !== 'undefined' && process.env?.GEMINI_API_KEY && !import.meta.env?.VITE_GEMINI_API_KEY;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -37,7 +47,6 @@ const callWithRetry = async <T>(
     } catch (err: any) {
       lastError = err;
       
-      // Robust error detection for different formats
       let errorStr = "";
       try {
         errorStr = JSON.stringify(err).toLowerCase();
@@ -98,21 +107,16 @@ export const generateDesignPlan = async (
     `;
 
   const runGeneration = async (modelName: string) => {
-    const parts: any[] = [];
-    if (processedImageData && processedImageData.includes(',')) {
-      parts.push({ 
-        inlineData: { 
-          data: processedImageData.split(',')[1], 
-          mimeType: "image/jpeg" 
-        } 
-      });
+    // Map internal aliases to public models if running locally
+    let actualModel = modelName;
+    if (!isAIStudio) {
+      if (modelName === "gemini-3-flash-preview") actualModel = "gemini-1.5-flash";
+      if (modelName === "gemini-3.1-flash-lite-preview") actualModel = "gemini-1.5-flash";
     }
-    parts.push({ text: prompt });
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: modelName,
-      contents: { parts: parts },
-      config: {
+    const model = ai.getGenerativeModel({
+      model: actualModel,
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -143,6 +147,7 @@ export const generateDesignPlan = async (
                 }
               }
             },
+            overallPrice: { type: Type.NUMBER },
             roomCounts: {
               type: Type.OBJECT,
               properties: {
@@ -152,21 +157,34 @@ export const generateDesignPlan = async (
                 LivingRoom: { type: Type.NUMBER },
                 DiningRoom: { type: Type.NUMBER }
               }
-            },
-            overallPrice: { type: Type.NUMBER }
+            }
           },
           required: ["title", "summary", "furniture", "overallPrice", "redesignDescription", "transformations"]
         }
       }
     });
 
-    const text = response.text || "";
+    const parts: any[] = [];
+    if (processedImageData && processedImageData.includes(',')) {
+      parts.push({ 
+        inlineData: { 
+          data: processedImageData.split(',')[1], 
+          mimeType: "image/jpeg" 
+        } 
+      });
+    }
+    parts.push({ text: prompt });
+
+    const result = await model.generateContent({ contents: [{ role: "user", parts }] });
+    const response = await result.response;
+    const text = response.text();
+
     try {
       const parsed = JSON.parse(text);
       return {
         ...parsed,
         totalBudget: budget,
-        isFallback: modelName !== "gemini-3-flash-preview"
+        isFallback: actualModel !== "gemini-3-flash-preview"
       };
     } catch (parseErr) {
       console.error("Failed to parse AI response:", text);
@@ -203,6 +221,15 @@ export const generateTransformedImage = async (
   }
 
   const runImageGen = async (modelName: string) => {
+    let actualModel = modelName;
+    if (!isAIStudio) {
+      // Local execution uses 1.5-flash which can return text-based image descriptions or similar
+      // but if the user wants true image-to-image we need a model that supports it.
+      actualModel = "gemini-1.5-flash"; 
+    }
+
+    const model = ai.getGenerativeModel({ model: actualModel });
+
     const parts: any[] = [];
     if (processedImageData && processedImageData.includes(',')) {
       parts.push({ 
@@ -214,13 +241,13 @@ export const generateTransformedImage = async (
     }
     parts.push({ text: redesignDescription });
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: modelName,
-      contents: { parts: parts },
-    });
-
-    if (response.candidates && response.candidates[0].content.parts) {
-      for (const part of response.candidates[0].content.parts) {
+    const result = await model.generateContent({ contents: [{ role: "user", parts }] });
+    const response = await result.response;
+    
+    // Check for inlineData in candidates manually if using flash-image
+    const candidate = response.candidates?.[0];
+    if (candidate?.content?.parts) {
+      for (const part of candidate.content.parts) {
         if (part.inlineData) {
           return {
             url: `data:image/png;base64,${part.inlineData.data}`,

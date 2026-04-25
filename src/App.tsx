@@ -59,8 +59,8 @@ const STYLE_THUMBNAILS: Record<string, string> = {
   'Bohemian': 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&q=80&w=400',
   'Luxury': 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&q=80&w=400',
   // Garden Styles
-  'English': 'https://images.unsplash.com/photo-1558094857-3f93028cc983?auto=format&fit=crop&q=80&w=400',
-  'Elegant': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=400',
+  'English': 'https://images.unsplash.com/photo-1598902108854-10e335adac99?auto=format&fit=crop&q=80&w=400',
+  'Elegant': 'https://images.unsplash.com/photo-1588880331179-bc9b93a8ec5e?auto=format&fit=crop&q=80&w=400',
   'Japanese': 'https://images.unsplash.com/photo-1583064313642-a7c149480c7e?auto=format&fit=crop&q=80&w=400',
   'Mediterranean': 'https://images.unsplash.com/photo-1516108317508-6788f6a160e6?auto=format&fit=crop&q=80&w=400',
 };

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://reimagine-room-ai-3jtv.vercel.app/sitemap.xml

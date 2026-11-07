@@ -1,0 +1,11 @@
+{
+  "name": "REIMAGINE Room AI",
+  "description": "INTERIOR INTELLIGENCE - Experience architectural preservation combined with artistic reimagining. Strictly layout-locked, budget-conscious, and beautiful.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "image_generation",
+    "ai_assistant"
+  ]
+}

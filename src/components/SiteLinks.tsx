@@ -1,6 +1,7 @@
 const links = [
   { href: '/about.html', label: 'About Us' },
   { href: '/services.html', label: 'Services' },
+  { href: '/blog/', label: 'Blog' },
   { href: '/contact.html', label: 'Contact Us' },
 ];
 
@@ -21,7 +22,7 @@ export default function SiteLinks() {
       {/* Mobile: dropdown menu */}
       <details className="md:hidden">
         <summary className="cursor-pointer list-none rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-          Menu
+          Pages
         </summary>
         <ul className="absolute right-0 z-20 mt-2 w-44 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
           {links.map((l) => (

@@ -1,4 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useDropzone } from 'react-dropzone';
 import { 
@@ -26,7 +31,8 @@ import {
   ArrowLeft,
   ChevronDown,
   ArrowRight,
-  Home
+  Home,
+  Menu
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import { RoomType, DesignStyle, DesignSuggestion, FurnitureItem, DesignHistoryItem, ColorPalette, AITool, GardenType, GardenStyle } from './types';
@@ -106,6 +112,8 @@ const TOOL_INFO: Record<AITool | string, { title: string; subtitle: string; desc
 
 export default function App() {
   const [showWelcome, setShowWelcome] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [activeTool, setActiveTool] = useState<AITool>('AI Room Planner');
   const [activeTab, setActiveTab] = useState('Smart Layout');
   const [mode, setMode] = useState<'Style' | 'Custom'>('Style');
@@ -166,6 +174,10 @@ export default function App() {
     
     setStep('loading');
     setError(null);
+    // On phones the preview is below the form, so scroll it into view
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     try {
       setLoadingState('Analyzing requirements...');
       
@@ -280,6 +292,12 @@ export default function App() {
     setStep('upload');
   };
 
+  const handleSelectTool = (tool: AITool | string) => {
+    setActiveTool(tool);
+    handleReset(); // Reset when switching tools
+    setMobileNavOpen(false);
+  };
+
   const selectHistoryItem = (item: DesignHistoryItem) => {
     setSuggestion(item.suggestion);
     setGeneratedImage(item.image);
@@ -305,7 +323,7 @@ export default function App() {
 
   if (showWelcome) {
     return (
-      <div className="h-screen w-screen bg-[#f7f7f2] flex flex-col items-center justify-center relative overflow-hidden font-display">
+      <div className="min-h-dvh w-full bg-[#f7f7f2] flex flex-col items-center justify-center relative overflow-hidden font-display">
         {/* Site navigation (About / Services / Contact) */}
         <div className="absolute top-6 right-6 z-20">
           <SiteLinks />
@@ -350,7 +368,7 @@ export default function App() {
           className="absolute bottom-[20%] left-[18%] w-32 h-32 bg-green-400/20 rounded-full blur-3xl" 
         />
 
-        <div className="z-10 text-center space-y-12">
+        <div className="z-10 text-center space-y-10 sm:space-y-12 px-4">
           <div className="space-y-4">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
@@ -363,7 +381,7 @@ export default function App() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="text-6xl font-black tracking-tighter text-slate-900"
+              className="text-4xl sm:text-6xl font-black tracking-tighter text-slate-900"
             >
               REIMAGINE <span className="text-green-500">Room AI</span>
             </motion.h1>
@@ -371,7 +389,7 @@ export default function App() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="text-slate-500 text-xl font-medium tracking-wide"
+              className="text-slate-500 text-base sm:text-xl font-medium tracking-wide"
             >
               INTERIOR INTELLIGENCE
             </motion.p>
@@ -404,48 +422,88 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-[#f7f7f2] text-slate-900 font-sans selection:bg-green-100 overflow-hidden">
-      <Sidebar activeTool={activeTool} onSelectTool={(tool) => {
-        setActiveTool(tool);
-        handleReset(); // Reset when switching tools
-      }} />
+    <div className="flex h-dvh bg-[#f7f7f2] text-slate-900 font-sans selection:bg-green-100 overflow-hidden">
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex h-full">
+        <Sidebar activeTool={activeTool} onSelectTool={handleSelectTool} />
+      </div>
+
+      {/* Mobile tool drawer */}
+      <AnimatePresence>
+        {mobileNavOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileNavOpen(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] md:hidden"
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'tween', duration: 0.25 }}
+              className="fixed inset-y-0 left-0 z-[90] flex max-w-[85vw] overflow-y-auto bg-white shadow-2xl md:hidden"
+            >
+              <Sidebar activeTool={activeTool} onSelectTool={handleSelectTool} />
+              <button
+                onClick={() => setMobileNavOpen(false)}
+                aria-label="Close tools menu"
+                className="absolute top-3 right-3 p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900"
+              >
+                <X size={18} />
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <main className="flex-1 overflow-y-auto bg-[#f7f7f2] relative flex flex-col">
         {/* Navigation / Header */}
-        <header className="h-20 px-8 flex items-center justify-between sticky top-0 bg-[#f7f7f2]/80 backdrop-blur-md z-40 border-b border-slate-200/40 shrink-0">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white">
+        <header className="h-16 sm:h-20 px-4 sm:px-8 flex items-center justify-between sticky top-0 bg-[#f7f7f2]/80 backdrop-blur-md z-40 border-b border-slate-200/40 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+             <button
+               onClick={() => setMobileNavOpen(true)}
+               aria-label="Open tools menu"
+               className="md:hidden flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+             >
+               <Menu size={16} />
+               Tools
+             </button>
+             <div className="hidden sm:flex w-8 h-8 bg-green-500 rounded-lg items-center justify-center text-white">
                <Home size={18} />
              </div>
              <div>
-               <h1 className="font-display font-black text-lg tracking-tight text-slate-900 flex items-center gap-1.5 uppercase leading-none">
+               <h1 className="font-display font-black text-sm sm:text-lg tracking-tight text-slate-900 flex items-center gap-1.5 uppercase leading-none">
                  REIMAGINE <span className="text-green-500">Room AI</span>
                </h1>
                <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase leading-none mt-0.5">Interior Intelligence</p>
              </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <SiteLinks />
             <button 
               onClick={() => handleReset()}
-              className="p-2 hover:bg-slate-200/50 rounded-xl transition-all text-slate-500"
+              className="hidden sm:block p-2 hover:bg-slate-200/50 rounded-xl transition-all text-slate-500"
               title="Home"
             >
               <Home size={18} />
             </button>
             <button 
               onClick={() => setShowHistory(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 rounded-xl text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+              aria-label="Start new"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-900 rounded-xl text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
             >
               <Plus size={14} />
-              START NEW
+              <span className="hidden sm:inline">START NEW</span>
             </button>
           </div>
         </header>
 
-        <div className="flex-1 p-8 max-w-[1400px] mx-auto w-full space-y-12 pb-24">
+        <div className="flex-1 p-4 sm:p-8 max-w-[1400px] mx-auto w-full space-y-8 sm:space-y-12 pb-24">
           {/* Hero Section */}
-          <div className="text-center space-y-6 pt-12 relative">
+          <div className="text-center space-y-4 sm:space-y-6 pt-4 sm:pt-12 relative">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -455,22 +513,22 @@ export default function App() {
               GROUNDED IN SPACE & BUDGET
             </motion.div>
 
-            <h2 className="text-6xl lg:text-8xl font-black tracking-tighter text-slate-900 leading-[0.9]">
+            <h2 className="text-4xl sm:text-6xl lg:text-8xl font-black tracking-tighter text-slate-900 leading-[0.95] sm:leading-[0.9]">
               Elevate Your <br />
               <span className="gradient-text">Personal Space</span>
             </h2>
-            <p className="text-slate-500 text-xl max-w-2xl mx-auto font-medium leading-relaxed">
+            <p className="text-slate-500 text-base sm:text-xl max-w-2xl mx-auto font-medium leading-relaxed">
               Experience architectural preservation combined with artistic reimagining. Strictly layout-locked, budget-conscious, and beautiful.
             </p>
 
             {activeTool === 'AI Room Planner' && (
-              <div className="flex items-center justify-center gap-4 pt-6">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 pt-4 sm:pt-6">
                 {['Smart Layout', 'Style Transformation', 'Space Conversion'].map((tab) => (
                   <button 
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                      "px-4 sm:px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
                       activeTab === tab ? "bg-[#e2f0d9] text-[#548235] shadow-sm shadow-[#e2f0d9]/50" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100/50"
                     )}
                   >
@@ -482,9 +540,9 @@ export default function App() {
           </div>
 
           {/* Main Interface Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 pt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 pt-4">
             {/* Left Column: Input & Config */}
-            <div className="lg:col-span-5 space-y-10">
+            <div className="lg:col-span-5 space-y-8 sm:space-y-10">
               {activeTool !== 'Floor Plan Generator' && (
                 <section className="space-y-4">
                   <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest pl-1">
@@ -493,7 +551,7 @@ export default function App() {
                   <div 
                     {...getRootProps()} 
                     className={cn(
-                      "w-full aspect-[16/10] rounded-[32px] border-2 border-dashed relative group transition-all duration-500 flex flex-col items-center justify-center p-8 text-center",
+                      "w-full aspect-[16/10] rounded-[32px] border-2 border-dashed relative group transition-all duration-500 flex flex-col items-center justify-center p-4 sm:p-8 text-center",
                       isDragActive ? "border-slate-900/40 bg-slate-100/50" : "border-slate-200 hover:border-slate-300 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.02)]"
                     )}
                   >
@@ -577,7 +635,7 @@ export default function App() {
 
                         <div className="space-y-4">
                           <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Room Style</label>
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                             {(['Modern', 'Scandinavian', 'Christmas', 'Industrial', 'Bohemian', 'Luxury'] as DesignStyle[]).map(s => {
                               const isActive = style === s;
                               return (
@@ -987,12 +1045,12 @@ export default function App() {
             </div>
 
             {/* Right Column: Preview */}
-            <div className="lg:col-span-7">
-              <div className="sticky top-28 space-y-6">
+            <div className="lg:col-span-7 scroll-mt-20" ref={previewRef}>
+              <div className="lg:sticky lg:top-28 space-y-6">
                 <div 
                   onClick={() => (generatedImage || !image) && setShowFullscreen(true)}
                   className={cn(
-                    "relative aspect-[4/3] w-full rounded-[48px] overflow-hidden bg-white shadow-[0_40px_80px_-12px_rgba(0,0,0,0.08)] border border-slate-100 group cursor-pointer",
+                    "relative aspect-[4/3] w-full rounded-[28px] sm:rounded-[48px] overflow-hidden bg-white shadow-[0_40px_80px_-12px_rgba(0,0,0,0.08)] border border-slate-100 group cursor-pointer",
                   )}
                 >
                   {activeTool === 'Floor Plan Generator' && generatedImage ? (
@@ -1023,7 +1081,7 @@ export default function App() {
                   )}
 
                   {/* Floating Action Buttons */}
-                  <div className="absolute top-6 right-6 flex items-center gap-3 z-30">
+                  <div className="absolute top-3 right-3 sm:top-6 sm:right-6 flex items-center gap-3 z-30">
                     {image && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleReset(); }}
@@ -1046,7 +1104,7 @@ export default function App() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-white/70 backdrop-blur-md flex flex-col items-center justify-center z-50 px-12 text-center"
+                        className="absolute inset-0 bg-white/70 backdrop-blur-md flex flex-col items-center justify-center z-50 px-6 sm:px-12 text-center"
                       >
                          <div className="w-20 h-20 relative mb-8">
                             <motion.div 
@@ -1058,7 +1116,7 @@ export default function App() {
                               <Sparkles className="text-indigo-600 animate-pulse" size={28} />
                             </div>
                          </div>
-                         <h3 className="text-3xl font-black text-slate-900 mb-3">{loadingState}</h3>
+                         <h3 className="text-xl sm:text-3xl font-black text-slate-900 mb-3">{loadingState}</h3>
                          <p className="text-slate-500 font-medium max-w-sm">Crafting your new space with precise lighting and texture synthesis...</p>
                       </motion.div>
                     )}
@@ -1075,16 +1133,16 @@ export default function App() {
               <motion.div 
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="pt-16 border-t border-slate-200 mt-16 space-y-16"
+                className="pt-10 sm:pt-16 border-t border-slate-200 mt-10 sm:mt-16 space-y-10 sm:space-y-16"
               >
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-16">
                   <div className="lg:col-span-2 space-y-10">
                     <div>
                       <div className="flex items-center gap-3 text-indigo-600 font-black text-[10px] uppercase tracking-[0.3em] mb-4">
                         <Sparkles size={16} /> AI Summary
                       </div>
-                      <h2 className="text-4xl lg:text-5xl font-black tracking-tighter mb-6 text-slate-900">{suggestion.title}</h2>
-                      <p className="text-slate-600 leading-relaxed text-xl font-medium">{suggestion.summary}</p>
+                      <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter mb-6 text-slate-900">{suggestion.title}</h2>
+                      <p className="text-slate-600 leading-relaxed text-base sm:text-xl font-medium">{suggestion.summary}</p>
                     </div>
                     
                     {activeTool === 'Floor Plan Generator' && (suggestion.roomCounts || floorPlanConfig.rooms) && (
@@ -1112,7 +1170,7 @@ export default function App() {
 
                   {(activeTool === 'AI Room Planner' || activeTool === 'Garden Design Generator') && (
                     <div className="space-y-6">
-                      <div className="bg-white rounded-[40px] p-8 text-slate-900 shadow-xl relative overflow-hidden flex flex-col border border-slate-100">
+                      <div className="bg-white rounded-[28px] sm:rounded-[40px] p-5 sm:p-8 text-slate-900 shadow-xl relative overflow-hidden flex flex-col border border-slate-100">
                         <div className="absolute -top-12 -right-12 w-48 h-48 bg-green-500/5 rounded-full blur-3xl opacity-30" />
                         <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl opacity-20" />
                         
@@ -1160,7 +1218,7 @@ export default function App() {
                         <div className="mt-8 pt-8 border-t border-slate-100 flex justify-between items-end relative z-10">
                            <div className="flex-1">
                               <span className="text-slate-400 text-[9px] font-black uppercase tracking-widest block mb-1">Total Estimated Cost</span>
-                              <div className="flex items-baseline gap-2">
+                              <div className="flex flex-wrap items-baseline gap-2">
                                 <span className="text-3xl font-black text-slate-900 tracking-tighter">PKR {suggestion.overallPrice.toLocaleString()}</span>
                                 <span className={cn(
                                   "text-[10px] font-black",
@@ -1206,15 +1264,15 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-8"
+            className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-3 sm:p-8"
           >
-            <div className="absolute top-8 right-8 flex items-center gap-4 z-[120]">
+            <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex items-center gap-4 z-[120]">
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowFullscreen(false);
                 }} 
-                className="p-5 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white backdrop-blur-md border border-white/20"
+                className="p-3 sm:p-5 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white backdrop-blur-md border border-white/20"
                 title="Close fullscreen"
               >
                 <X size={32} />
@@ -1225,7 +1283,7 @@ export default function App() {
               animate={{ scale: 1, opacity: 1 }}
               className="relative max-w-7xl w-full aspect-[4/3] rounded-[32px] overflow-hidden shadow-2xl"
             >
-              <img src={(generatedImage || image) ?? undefined} className="w-full h-full object-cover" alt="Fullscreen View" />
+              <img src={(generatedImage || image) ?? undefined} className="w-full h-full object-contain" alt="Fullscreen View" />
             </motion.div>
           </motion.div>
         )}
@@ -1245,7 +1303,7 @@ export default function App() {
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              className="fixed top-0 right-0 bottom-0 w-96 bg-white shadow-2xl z-[70] p-8 flex flex-col border-l border-slate-100"
+              className="fixed top-0 right-0 bottom-0 w-full max-w-sm sm:w-96 bg-white shadow-2xl z-[70] p-5 sm:p-8 flex flex-col border-l border-slate-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
@@ -1301,7 +1359,7 @@ export default function App() {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-full max-w-sm"
+            className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-[100] w-full max-w-sm px-4 sm:px-0"
           >
             <div className="bg-white border border-slate-200 rounded-[28px] p-5 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.12)] flex items-center gap-4">
               <div className="p-3 bg-red-50 rounded-2xl text-red-500 shrink-0">

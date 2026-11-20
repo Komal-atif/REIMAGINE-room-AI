@@ -292,7 +292,7 @@ export default function App() {
     setStep('upload');
   };
 
-  const handleSelectTool = (tool: AITool | string) => {
+  const handleSelectTool = (tool: AITool) => {
     setActiveTool(tool);
     handleReset(); // Reset when switching tools
     setMobileNavOpen(false);

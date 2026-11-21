@@ -1,27 +1,84 @@
 <!doctype html>
 <html lang="en">
   <head>
-
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9D90HB4ZXM"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-9D90HB4ZXM');
-  </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9D90HB4ZXM"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-9D90HB4ZXM');
+    </script>
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-48x48.png" type="image/png" sizes="48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#f7f7f2" />
+
+    <!-- SEO -->
     <title>AI Room Design from Photo | ReImagine Room AI</title>
     <meta name="description" content="Try AI room design online: upload a photo and get an AI interior design makeover that keeps your layout and fits your budget in PKR." />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <link rel="canonical" href="https://reimagine-room-ai-3jtv.vercel.app/" />
+
+    <!-- Open Graph (WhatsApp, LinkedIn, Facebook preview) -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ReImagine Room AI" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:title" content="AI Room Design from Photo | ReImagine Room AI" />
     <meta property="og:description" content="Try AI room design online: upload a photo and get an AI interior design makeover that keeps your layout and fits your budget in PKR." />
-    <link rel="canonical" href="https://reimagine-room-ai-3jtv.vercel.app/" />
+    <meta property="og:url" content="https://reimagine-room-ai-3jtv.vercel.app/" />
+    <meta property="og:image" content="https://reimagine-room-ai-3jtv.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ReImagine Room AI - AI room design tool" />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AI Room Design from Photo | ReImagine Room AI" />
+    <meta name="twitter:description" content="Upload a photo of your room and get an AI redesign that keeps your layout and fits your budget in PKR." />
+    <meta name="twitter:image" content="https://reimagine-room-ai-3jtv.vercel.app/og-image.png" />
+
+    <!-- Structured data: site name for Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://reimagine-room-ai-3jtv.vercel.app/#website",
+          "name": "ReImagine Room AI",
+          "alternateName": ["ReImagine", "ReImagine Room"],
+          "url": "https://reimagine-room-ai-3jtv.vercel.app/",
+          "inLanguage": "en"
+        },
+        {
+          "@type": "WebApplication",
+          "name": "ReImagine Room AI",
+          "url": "https://reimagine-room-ai-3jtv.vercel.app/",
+          "applicationCategory": "DesignApplication",
+          "operatingSystem": "Any (web browser)",
+          "description": "AI interior design tool: upload a room photo, choose a style and a budget in PKR, and get a redesign that keeps your layout."
+        }
+      ]
+    }
+    </script>
+
     <style>body{margin:0;background:#f7f7f2}</style>
   </head>
+
   <body>
+    <noscript>
+      <p style="font-family:system-ui,Arial,sans-serif;padding:1rem;text-align:center">
+        ReImagine Room AI needs JavaScript to run. Please enable JavaScript in your browser.
+      </p>
+    </noscript>
+
     <div id="root">
       <!-- Crawlable fallback: React replaces this as soon as the app loads -->
       <div style="font-family:system-ui,Arial,sans-serif;text-align:center;padding:4rem 1.5rem;color:#0f172a">
@@ -36,6 +93,7 @@
         </nav>
       </div>
     </div>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

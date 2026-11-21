@@ -1,20 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# ReImagine Room AI ✨
 
-# Run and deploy your AI Studio app
+> Upload a photo of your room, choose a style and a budget in PKR, and get an AI redesign that keeps your layout the same.
 
-This contains everything you need to run your app locally.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Site-22c55e?style=for-the-badge&logo=vercel&logoColor=white)](https://reimagine-room-ai-3jtv.vercel.app/)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 
-View your app in AI Studio: https://ai.studio/apps/6ef5895c-f74c-4831-b070-b60f0f711782
+🔗 **Live:** [reimagine-room-ai-3jtv.vercel.app](https://reimagine-room-ai-3jtv.vercel.app/)
 
-## Run Locally
+## Features
+- 🛋️ Room redesign from a photo
+- 🧹 Room cleaner
+- 📐 Floor plan generator
+- 🌿 Garden design generator
+- 🎨 Paint color visualizer
+- 💰 Budget-aware suggestions in PKR
 
-**Prerequisites:**  Node.js
+## Tech Stack
+React, Vite, TypeScript, Vercel
 
+## Run locally
+```bash
+git clone https://github.com/Komal-atif/<repo-name>.git
+cd <repo-name>
+npm install
+npm run dev
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Author
+**Komal Atif** · [GitHub](https://github.com/Komal-atif) · [LinkedIn](https://linkedin.com/in/komal-atif-5255242a8)
